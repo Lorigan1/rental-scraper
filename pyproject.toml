@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rental-scraper"
+version = "0.1.0"
+description = "Vancouver rental market analysis tool - scrape listings from multiple sources"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Paul Lorigan"}
+]
+
+dependencies = [
+    "playwright>=1.40.0",
+    "anthropic>=0.18.0",
+    "httpx>=0.25.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "python-dateutil>=2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-timeout>=2.2.0",
+]
+gcp = [
+    "psycopg2-binary>=2.9.0",
+    "google-cloud-storage>=2.13.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests that hit live sites (deselect with '-m \"not slow\"')",
+]
