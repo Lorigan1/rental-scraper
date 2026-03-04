@@ -47,6 +47,16 @@ echo "→ Deleting Cloud SQL instance (this takes a few minutes)..."
 gcloud sql instances delete "${INSTANCE_NAME}" \
     --project="${PROJECT}" --quiet 2>/dev/null || true
 
+echo "→ Deleting VPC connector..."
+gcloud compute networks vpc-access connectors delete rental-scraper-conn \
+    --region="${REGION}" --project="${PROJECT}" --quiet 2>/dev/null || true
+
+echo "→ Deleting VPC peering and network..."
+gcloud compute addresses delete google-managed-services-rental-scraper-vpc \
+    --global --project="${PROJECT}" --quiet 2>/dev/null || true
+gcloud compute networks delete rental-scraper-vpc \
+    --project="${PROJECT}" --quiet 2>/dev/null || true
+
 echo "→ Deleting Secret Manager secret..."
 gcloud secrets delete db-password --project="${PROJECT}" --quiet 2>/dev/null || true
 

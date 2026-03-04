@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import datetime
@@ -20,8 +21,8 @@ BASE_URL = "https://vancouver.craigslist.org/search/roo"
 class CraigslistScraper(BaseScraper):
     """Scrape rental listings from Craigslist Vancouver rooms & shares.
 
-    Extracts listing cards from search results, then optionally visits
-    individual listing pages for full details (description, images, amenities).
+    Uses embedded JSON-LD data (ld_searchpage_results) as primary extraction
+    method, falling back to DOM selectors if JSON is unavailable.
 
     Usage:
         async with CraigslistScraper() as scraper:
@@ -79,8 +80,12 @@ class CraigslistScraper(BaseScraper):
                 await page.goto(url, wait_until="domcontentloaded", timeout=30000)
                 await self.human_delay(1.5, 3.0)
 
-                # Extract listing cards from search results
-                batch = await self._extract_search_results(page)
+                # Try embedded JSON first (most reliable), fall back to DOM
+                batch = await self._extract_from_json(page)
+                if not batch:
+                    logger.info("JSON extraction failed, trying DOM selectors...")
+                    batch = await self._extract_search_results(page)
+
                 if not batch:
                     logger.info("No more results found, stopping.")
                     break
@@ -113,13 +118,127 @@ class CraigslistScraper(BaseScraper):
 
         return listings
 
+    # ── JSON-LD extraction (primary method) ──────────────────────
+
+    async def _extract_from_json(self, page) -> list[Listing]:
+        """Extract listings from embedded JSON-LD script tag.
+
+        Craigslist embeds all search result data in a <script> tag with
+        id="ld_searchpage_results" as JSON-LD. This is far more reliable
+        than parsing DOM elements.
+        """
+        listings = []
+        try:
+            json_el = await page.query_selector("script#ld_searchpage_results")
+            if not json_el:
+                logger.debug("No ld_searchpage_results script tag found")
+                return []
+
+            raw = await json_el.inner_text()
+            data = json.loads(raw)
+
+            # JSON-LD wraps listings in an itemListElement array
+            items = []
+            if isinstance(data, dict):
+                items = data.get("itemListElement", [])
+            elif isinstance(data, list):
+                items = data
+
+            for item in items:
+                listing = self._parse_json_item(item)
+                if listing:
+                    listings.append(listing)
+
+            logger.info(f"JSON extraction: {len(listings)} listings from embedded data")
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse embedded JSON: {e}")
+        except Exception as e:
+            logger.warning(f"JSON extraction error: {e}")
+
+        return listings
+
+    def _parse_json_item(self, item: dict) -> Optional[Listing]:
+        """Parse a single JSON-LD item into a Listing."""
+        try:
+            listing = Listing(source=ListingSource.CRAIGSLIST)
+
+            listing.title = item.get("name", "")
+            listing.url = item.get("url", "")
+            listing.description = item.get("description", "")
+
+            # Price - can be nested in offers or directly present
+            offers = item.get("offers", {})
+            if isinstance(offers, dict):
+                price_val = offers.get("price") or offers.get("priceCurrency")
+                if price_val:
+                    listing.price = self.extract_price(str(price_val))
+            # Also try top-level price
+            if not listing.price and item.get("price"):
+                listing.price = self.extract_price(str(item["price"]))
+
+            # Location
+            address = item.get("address", {})
+            if isinstance(address, dict):
+                parts = []
+                if address.get("addressLocality"):
+                    parts.append(address["addressLocality"])
+                if address.get("addressRegion"):
+                    parts.append(address["addressRegion"])
+                if parts:
+                    listing.location = ", ".join(parts)
+
+            # Geo coordinates
+            geo = item.get("geo", {})
+            if isinstance(geo, dict):
+                try:
+                    if geo.get("latitude"):
+                        listing.latitude = float(geo["latitude"])
+                    if geo.get("longitude"):
+                        listing.longitude = float(geo["longitude"])
+                except (ValueError, TypeError):
+                    pass
+
+            # Date
+            date_str = item.get("datePosted") or item.get("datePublished")
+            if date_str:
+                try:
+                    listing.posted_date = datetime.fromisoformat(
+                        date_str.replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    pass
+
+            # Images
+            images = item.get("image", [])
+            if isinstance(images, str):
+                images = [images]
+            listing.image_urls = [img for img in images if isinstance(img, str) and img.startswith("http")]
+
+            # Post ID from URL
+            if listing.url:
+                id_match = re.search(r'/(\d+)\.html', listing.url)
+                if id_match:
+                    listing.id = f"cl-{id_match.group(1)}"
+
+            # Default listing type for rooms section
+            listing.listing_type = ListingType.ROOM_PRIVATE
+            self._classify_listing_type(listing)
+
+            return listing if listing.title else None
+
+        except Exception as e:
+            logger.debug(f"Failed to parse JSON item: {e}")
+            return None
+
+    # ── DOM extraction (fallback method) ─────────────────────────
+
     async def _extract_search_results(self, page) -> list[Listing]:
-        """Extract listings from a Craigslist search results page."""
+        """Extract listings from DOM elements (fallback if JSON unavailable)."""
         listings = []
 
-        # Craigslist uses .cl-search-result or .result-row for listing cards
-        # Try the newer gallery/list layout first, then fall back
-        cards = await page.query_selector_all("li.cl-search-result, .result-row")
+        # Craigslist uses div.cl-search-result with data-pid for listing cards
+        cards = await page.query_selector_all("div.cl-search-result, li.cl-search-result, .result-row")
         if not cards:
             # Try alternate selector for gallery view
             cards = await page.query_selector_all(".cl-search-result")
@@ -140,7 +259,9 @@ class CraigslistScraper(BaseScraper):
         listing = Listing(source=ListingSource.CRAIGSLIST)
 
         # Title and URL - try multiple selector patterns
-        title_el = await card.query_selector("a.titlestring, a.result-title, .title-blob a")
+        title_el = await card.query_selector(
+            "a.titlestring, a.posting-title, a.result-title, .title-blob a, a.cl-app-anchor"
+        )
         if title_el:
             listing.title = self.clean_text(await title_el.inner_text())
             listing.url = await title_el.get_attribute("href") or ""
@@ -148,17 +269,20 @@ class CraigslistScraper(BaseScraper):
             if listing.url and not listing.url.startswith("http"):
                 listing.url = f"https://vancouver.craigslist.org{listing.url}"
 
-        # Price
-        price_el = await card.query_selector(".priceinfo, .result-price, .price")
+        # Price - try multiple selectors
+        price_el = await card.query_selector(
+            ".priceinfo, .price, .result-price, .meta .price"
+        )
         if price_el:
             price_text = await price_el.inner_text()
             listing.price = self.extract_price(price_text)
 
         # Location / neighborhood
-        hood_el = await card.query_selector(".meta .subreddit, .result-hood, .neighborhoods")
+        hood_el = await card.query_selector(
+            ".meta .subreddit, .result-hood, .neighborhoods, .location, .meta .nearby"
+        )
         if hood_el:
             listing.location = self.clean_text(await hood_el.inner_text())
-            # Remove parentheses that Craigslist wraps neighborhoods in
             listing.location = listing.location.strip("() ")
 
         # Posted date
@@ -175,17 +299,21 @@ class CraigslistScraper(BaseScraper):
                 date_text = await date_el.inner_text()
                 listing.posted_date = self.parse_relative_date(date_text)
 
-        # Craigslist rooms section defaults to room_private
-        listing.listing_type = ListingType.ROOM_PRIVATE
-
-        # Use URL as stable ID
-        if listing.url:
-            # Extract Craigslist post ID from URL
+        # Data-pid attribute as ID
+        pid = await card.get_attribute("data-pid")
+        if pid:
+            listing.id = f"cl-{pid}"
+        elif listing.url:
             id_match = re.search(r'/(\d+)\.html', listing.url)
             if id_match:
                 listing.id = f"cl-{id_match.group(1)}"
 
+        # Default listing type
+        listing.listing_type = ListingType.ROOM_PRIVATE
+
         return listing if listing.title else None
+
+    # ── Detail page extraction ───────────────────────────────────
 
     async def _fetch_listing_details(self, page, listing: Listing):
         """Visit a listing page to extract full details."""

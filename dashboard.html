@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vancouver Rental Market Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #f5f6fa;
+            --card: #ffffff;
+            --text: #2d3436;
+            --text-secondary: #636e72;
+            --accent: #0984e3;
+            --accent-light: #74b9ff;
+            --green: #00b894;
+            --orange: #fdcb6e;
+            --red: #d63031;
+            --purple: #6c5ce7;
+            --border: #dfe6e9;
+            --shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        header h1 span {
+            color: var(--text-secondary);
+            font-weight: 400;
+            font-size: 14px;
+            display: block;
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filters select, .filters input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .filters select:focus, .filters input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .load-btn {
+            padding: 8px 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .load-btn:hover { background: #0773c5; }
+
+        #fileInput { display: none; }
+
+        /* KPI cards */
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .kpi-card .label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .kpi-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .kpi-card .sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Charts */
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .chart-card h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .chart-card canvas {
+            width: 100% !important;
+        }
+
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Table */
+        .details {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+        }
+
+        .details h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .table-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .table-info span {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 2px solid var(--border);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th:hover { color: var(--accent); }
+        th .sort-arrow { margin-left: 4px; font-size: 10px; }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        tr:hover td { background: #f8f9fa; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-craigslist { background: #dfe6e9; color: #2d3436; }
+        .badge-kijiji { background: #ffeaa7; color: #6c5005; }
+        .badge-facebook { background: #a29bfe; color: #2d1f8e; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state h2 { font-size: 20px; margin-bottom: 8px; color: var(--text); }
+        .empty-state p { font-size: 14px; margin-bottom: 20px; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .charts { grid-template-columns: 1fr; }
+            .kpis { grid-template-columns: repeat(2, 1fr); }
+            header { flex-direction: column; align-items: flex-start; }
+        }
+
+        @media print {
+            body { background: white; }
+            .load-btn, .filters { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <header>
+        <h1>Vancouver Rental Market
+            <span id="lastUpdated">Load data to get started</span>
+        </h1>
+        <div class="filters">
+            <select id="filterSource">
+                <option value="all">All Sources</option>
+                <option value="craigslist">Craigslist</option>
+                <option value="kijiji">Kijiji</option>
+                <option value="facebook">Facebook</option>
+            </select>
+            <select id="filterType">
+                <option value="all">All Types</option>
+                <option value="room_private">Private Room</option>
+                <option value="room_shared">Shared Room</option>
+                <option value="basement_suite">Basement Suite</option>
+                <option value="studio">Studio</option>
+                <option value="1br">1 Bedroom</option>
+                <option value="2br">2 Bedroom</option>
+                <option value="other">Other</option>
+            </select>
+            <input type="number" id="filterMinPrice" placeholder="Min $" style="width:90px;">
+            <input type="number" id="filterMaxPrice" placeholder="Max $" style="width:90px;">
+            <button class="load-btn" onclick="document.getElementById('fileInput').click()">Load JSON</button>
+            <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)">
+        </div>
+    </header>
+
+    <div id="emptyState" class="empty-state">
+        <h2>No data loaded</h2>
+        <p>Click "Load JSON" to open a scrape export, or drag and drop a JSON file here.</p>
+        <p style="font-size:13px;">Generate data with: <code>python refresh_dashboard.py</code></p>
+    </div>
+
+    <div id="dashboardContent" style="display:none;">
+        <section class="kpis">
+            <div class="kpi-card">
+                <div class="label">Total Listings</div>
+                <div class="value" id="kpiTotal">—</div>
+                <div class="sub" id="kpiSources">—</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label">Average Rent</div>
+                <div class="value" id="kpiAvg">—</div>
+                <div class="sub" id="kpiAvgSub">per month</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label">Median Rent</div>
+                <div class="value" id="kpiMedian">—</div>
+                <div class="sub" id="kpiRange">—</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label">Under $1,000/mo</div>
+                <div class="value" id="kpiAffordable">—</div>
+                <div class="sub" id="kpiAffordablePct">—</div>
+            </div>
+        </section>
+
+        <section class="charts">
+            <div class="chart-card">
+                <h3>Price Distribution</h3>
+                <canvas id="chartHistogram"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>By Listing Type</h3>
+                <canvas id="chartTypes"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Average Price by Neighbourhood</h3>
+                <canvas id="chartNeighbourhoods"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Price by Source</h3>
+                <canvas id="chartSources"></canvas>
+            </div>
+        </section>
+
+        <section class="details">
+            <div class="table-info">
+                <h3>All Listings</h3>
+                <span id="tableCount">—</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th data-sort="price">Price <span class="sort-arrow"></span></th>
+                        <th data-sort="title">Title <span class="sort-arrow"></span></th>
+                        <th data-sort="location">Location <span class="sort-arrow"></span></th>
+                        <th data-sort="source">Source <span class="sort-arrow"></span></th>
+                        <th data-sort="listing_type">Type <span class="sort-arrow"></span></th>
+                        <th data-sort="posted_date">Posted <span class="sort-arrow"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </section>
+    </div>
+</div>
+
+<script>
+    // ── State ───────────────────────────────────────────────────
+    let allData = [];
+    let filteredData = [];
+    let sortCol = 'price';
+    let sortAsc = true;
+    let charts = {};
+
+    // ── Data loading ────────────────────────────────────────────
+    function handleFileLoad(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                const data = JSON.parse(ev.target.result);
+                loadData(Array.isArray(data) ? data : [data]);
+            } catch (err) {
+                alert('Invalid JSON file: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // Drag & drop support
+    document.addEventListener('dragover', e => { e.preventDefault(); });
+    document.addEventListener('drop', e => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.endsWith('.json')) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    loadData(Array.isArray(data) ? data : [data]);
+                } catch (err) {
+                    alert('Invalid JSON file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    // Check Chart.js loaded
+    function chartsAvailable() {
+        return typeof Chart !== 'undefined';
+    }
+
+    // Auto-load if data.json exists alongside dashboard
+    fetch('data.json').then(r => r.ok ? r.json() : null).then(d => {
+        if (d && Array.isArray(d) && d.length > 0) loadData(d);
+    }).catch(() => {});
+
+    function loadData(data) {
+        allData = data.map(d => ({
+            ...d,
+            price: typeof d.price === 'number' ? d.price : (parseInt(d.price) || null),
+        }));
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+
+        const dates = allData.map(d => d.extracted_at || d.posted_date).filter(Boolean);
+        const latest = dates.length ? new Date(Math.max(...dates.map(d => new Date(d)))).toLocaleDateString() : 'Unknown';
+        document.getElementById('lastUpdated').textContent = `${allData.length} listings \u00b7 Last updated ${latest}`;
+
+        applyFilters();
+    }
+
+    // ── Filters ─────────────────────────────────────────────────
+    document.getElementById('filterSource').addEventListener('change', applyFilters);
+    document.getElementById('filterType').addEventListener('change', applyFilters);
+    document.getElementById('filterMinPrice').addEventListener('input', debounce(applyFilters, 300));
+    document.getElementById('filterMaxPrice').addEventListener('input', debounce(applyFilters, 300));
+
+    function debounce(fn, ms) {
+        let t; return function() { clearTimeout(t); t = setTimeout(fn, ms); };
+    }
+
+    function applyFilters() {
+        const source = document.getElementById('filterSource').value;
+        const type = document.getElementById('filterType').value;
+        const minP = parseInt(document.getElementById('filterMinPrice').value) || 0;
+        const maxP = parseInt(document.getElementById('filterMaxPrice').value) || Infinity;
+
+        filteredData = allData.filter(d => {
+            if (source !== 'all' && d.source !== source) return false;
+            if (type !== 'all' && d.listing_type !== type) return false;
+            if (d.price && d.price < minP) return false;
+            if (d.price && d.price > maxP) return false;
+            return true;
+        });
+
+        updateKPIs();
+        updateCharts();
+        updateTable();
+    }
+
+    // ── KPIs ────────────────────────────────────────────────────
+    function updateKPIs() {
+        const prices = filteredData.map(d => d.price).filter(p => p && p > 0);
+        prices.sort((a, b) => a - b);
+
+        document.getElementById('kpiTotal').textContent = filteredData.length.toLocaleString();
+
+        const sources = {};
+        filteredData.forEach(d => { sources[d.source] = (sources[d.source] || 0) + 1; });
+        document.getElementById('kpiSources').textContent = Object.entries(sources).map(([k,v]) => `${k}: ${v}`).join(' \u00b7 ');
+
+        if (prices.length > 0) {
+            const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+            const median = prices.length % 2 === 0
+                ? Math.round((prices[prices.length/2 - 1] + prices[prices.length/2]) / 2)
+                : prices[Math.floor(prices.length/2)];
+            const min = prices[0];
+            const max = prices[prices.length - 1];
+            const affordable = prices.filter(p => p < 1000).length;
+            const pct = Math.round((affordable / prices.length) * 100);
+
+            document.getElementById('kpiAvg').textContent = '$' + avg.toLocaleString();
+            document.getElementById('kpiMedian').textContent = '$' + median.toLocaleString();
+            document.getElementById('kpiRange').textContent = `$${min.toLocaleString()} \u2013 $${max.toLocaleString()}`;
+            document.getElementById('kpiAffordable').textContent = affordable.toLocaleString();
+            document.getElementById('kpiAffordablePct').textContent = `${pct}% of listings`;
+        } else {
+            ['kpiAvg','kpiMedian','kpiRange','kpiAffordable','kpiAffordablePct'].forEach(id => {
+                document.getElementById(id).textContent = '\u2014';
+            });
+        }
+    }
+
+    // ── Charts ──────────────────────────────────────────────────
+    const COLORS = {
+        accent: '#0984e3',
+        accentLight: '#74b9ff',
+        green: '#00b894',
+        orange: '#fdcb6e',
+        red: '#d63031',
+        purple: '#6c5ce7',
+        teal: '#00cec9',
+        pink: '#e84393',
+    };
+    const PALETTE = Object.values(COLORS);
+
+    function destroyCharts() {
+        Object.values(charts).forEach(c => c.destroy());
+        charts = {};
+    }
+
+    function updateCharts() {
+        if (!chartsAvailable()) return;
+        destroyCharts();
+        const prices = filteredData.map(d => d.price).filter(p => p && p > 0);
+
+        // Price histogram
+        if (prices.length > 0) {
+            const bins = {};
+            const step = 200;
+            prices.forEach(p => {
+                const bin = Math.floor(p / step) * step;
+                const label = `$${bin}-${bin + step}`;
+                bins[label] = (bins[label] || 0) + 1;
+            });
+            const sortedBins = Object.entries(bins).sort((a, b) => {
+                const numA = parseInt(a[0].replace(/[$,]/g, ''));
+                const numB = parseInt(b[0].replace(/[$,]/g, ''));
+                return numA - numB;
+            });
+
+            charts.histogram = new Chart(document.getElementById('chartHistogram'), {
+                type: 'bar',
+                data: {
+                    labels: sortedBins.map(b => b[0]),
+                    datasets: [{
+                        label: 'Listings',
+                        data: sortedBins.map(b => b[1]),
+                        backgroundColor: COLORS.accent + 'cc',
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        x: { ticks: { maxRotation: 45 } }
+                    }
+                }
+            });
+        }
+
+        // By listing type
+        const types = {};
+        filteredData.forEach(d => {
+            const t = d.listing_type || 'other';
+            types[t] = (types[t] || 0) + 1;
+        });
+        const typeLabels = {
+            room_private: 'Private Room', room_shared: 'Shared Room',
+            basement_suite: 'Basement Suite', studio: 'Studio',
+            '1br': '1 Bedroom', '2br': '2 Bedroom', '3br': '3 Bedroom',
+            house: 'House', laneway: 'Laneway', other: 'Other'
+        };
+        const typeSorted = Object.entries(types).sort((a, b) => b[1] - a[1]);
+        charts.types = new Chart(document.getElementById('chartTypes'), {
+            type: 'doughnut',
+            data: {
+                labels: typeSorted.map(t => typeLabels[t[0]] || t[0]),
+                datasets: [{
+                    data: typeSorted.map(t => t[1]),
+                    backgroundColor: PALETTE.slice(0, typeSorted.length),
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } }
+                }
+            }
+        });
+
+        // Average price by neighbourhood
+        const hoods = {};
+        filteredData.forEach(d => {
+            if (!d.location || !d.price) return;
+            let loc = d.location.replace(/\(|\)/g, '').trim();
+            if (loc.length > 30) loc = loc.substring(0, 27) + '...';
+            if (!loc) return;
+            if (!hoods[loc]) hoods[loc] = { total: 0, count: 0 };
+            hoods[loc].total += d.price;
+            hoods[loc].count += 1;
+        });
+        const hoodSorted = Object.entries(hoods)
+            .map(([name, v]) => ({ name, avg: Math.round(v.total / v.count), count: v.count }))
+            .filter(h => h.count >= 2)
+            .sort((a, b) => b.avg - a.avg)
+            .slice(0, 12);
+
+        charts.hoods = new Chart(document.getElementById('chartNeighbourhoods'), {
+            type: 'bar',
+            data: {
+                labels: hoodSorted.map(h => h.name),
+                datasets: [{
+                    label: 'Avg Price',
+                    data: hoodSorted.map(h => h.avg),
+                    backgroundColor: COLORS.green + 'cc',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `$${ctx.raw.toLocaleString()}/mo (${hoodSorted[ctx.dataIndex].count} listings)`
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { callback: v => '$' + v.toLocaleString() } }
+                }
+            }
+        });
+
+        // Price by source (box-like visualization using bar with error bars)
+        const sourceStats = {};
+        filteredData.forEach(d => {
+            if (!d.price || !d.source) return;
+            if (!sourceStats[d.source]) sourceStats[d.source] = [];
+            sourceStats[d.source].push(d.price);
+        });
+        const sourceData = Object.entries(sourceStats).map(([name, prices]) => {
+            prices.sort((a, b) => a - b);
+            const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+            const med = prices.length % 2 === 0
+                ? Math.round((prices[prices.length/2-1] + prices[prices.length/2]) / 2)
+                : prices[Math.floor(prices.length/2)];
+            const min = prices[0];
+            const max = prices[prices.length - 1];
+            const q1 = prices[Math.floor(prices.length * 0.25)];
+            const q3 = prices[Math.floor(prices.length * 0.75)];
+            return { name, avg, med, min, max, q1, q3, count: prices.length };
+        });
+
+        const sourceColors = { craigslist: COLORS.accent, kijiji: COLORS.orange, facebook: COLORS.purple };
+        charts.sources = new Chart(document.getElementById('chartSources'), {
+            type: 'bar',
+            data: {
+                labels: sourceData.map(s => s.name.charAt(0).toUpperCase() + s.name.slice(1)),
+                datasets: [
+                    {
+                        label: 'Median',
+                        data: sourceData.map(s => s.med),
+                        backgroundColor: sourceData.map(s => (sourceColors[s.name] || COLORS.teal) + 'cc'),
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Average',
+                        data: sourceData.map(s => s.avg),
+                        backgroundColor: sourceData.map(s => (sourceColors[s.name] || COLORS.teal) + '66'),
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (ctx) => {
+                                const s = sourceData[ctx.dataIndex];
+                                return `Range: $${s.min.toLocaleString()} - $${s.max.toLocaleString()}\nCount: ${s.count}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '$' + v.toLocaleString() }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Table ───────────────────────────────────────────────────
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = th.dataset.sort;
+            if (sortCol === col) sortAsc = !sortAsc;
+            else { sortCol = col; sortAsc = true; }
+            updateTable();
+        });
+    });
+
+    function updateTable() {
+        const sorted = [...filteredData].sort((a, b) => {
+            let va = a[sortCol], vb = b[sortCol];
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            if (typeof va === 'string') va = va.toLowerCase();
+            if (typeof vb === 'string') vb = vb.toLowerCase();
+            if (va < vb) return sortAsc ? -1 : 1;
+            if (va > vb) return sortAsc ? 1 : -1;
+            return 0;
+        });
+
+        document.getElementById('tableCount').textContent = `${sorted.length} listings`;
+
+        // Update sort arrows
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            const arrow = th.querySelector('.sort-arrow');
+            if (th.dataset.sort === sortCol) {
+                arrow.textContent = sortAsc ? '\u25b2' : '\u25bc';
+            } else {
+                arrow.textContent = '';
+            }
+        });
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = sorted.slice(0, 200).map(d => {
+            const price = d.price ? '$' + d.price.toLocaleString() + '/mo' : '\u2014';
+            const title = d.title || '\u2014';
+            const loc = (d.location || '\u2014').replace(/\(|\)/g, '').trim();
+            const source = d.source || '\u2014';
+            const type = d.listing_type || '\u2014';
+            const posted = d.posted_date ? new Date(d.posted_date).toLocaleDateString() : '\u2014';
+            const url = d.url || '#';
+
+            const badgeClass = source === 'craigslist' ? 'badge-craigslist'
+                : source === 'kijiji' ? 'badge-kijiji'
+                : source === 'facebook' ? 'badge-facebook' : '';
+
+            return `<tr>
+                <td><strong>${price}</strong></td>
+                <td><a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">${escapeHtml(title)}</a></td>
+                <td>${escapeHtml(loc)}</td>
+                <td><span class="badge ${badgeClass}">${source}</span></td>
+                <td>${type.replace(/_/g, ' ')}</td>
+                <td>${posted}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+</script>
+</body>
+</html>

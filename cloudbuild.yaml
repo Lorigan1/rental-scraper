@@ -14,6 +14,7 @@ substitutions:
   _REGION: us-west1
   _AR_REPO: rental-scraper
   _JOB_NAME: rental-scraper-job
+  _TAG: latest
 
 steps:
   # Build the container image
@@ -21,7 +22,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:${SHORT_SHA}'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:${_TAG}'
       - '-t'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:latest'
       - '.'
@@ -41,11 +42,11 @@ steps:
       - 'jobs'
       - 'update'
       - '${_JOB_NAME}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:${SHORT_SHA}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:${_TAG}'
       - '--region=${_REGION}'
 
 images:
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:${_TAG}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/rental-scraper:latest'
 
 options:

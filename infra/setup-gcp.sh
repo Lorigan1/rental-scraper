@@ -47,6 +47,9 @@ gcloud services enable \
     artifactregistry.googleapis.com \
     cloudscheduler.googleapis.com \
     secretmanager.googleapis.com \
+    servicenetworking.googleapis.com \
+    vpcaccess.googleapis.com \
+    compute.googleapis.com \
     --project="${PROJECT}" \
     --quiet
 
@@ -71,7 +74,42 @@ for ROLE in \
 done
 echo "  Service account: ${SA_EMAIL}"
 
-# ── Cloud SQL (PostgreSQL) ────────────────────────────────────
+# ── VPC Network + Private Services Access ─────────────────────
+# Required by org policy: sql.restrictPublicIp
+NETWORK_NAME="rental-scraper-vpc"
+CONNECTOR_NAME="rental-scraper-conn"
+
+echo "→ Setting up VPC for private Cloud SQL..."
+gcloud compute networks create "${NETWORK_NAME}" \
+    --subnet-mode=auto \
+    --project="${PROJECT}" 2>/dev/null || echo "  VPC already exists"
+
+# Allocate IP range for Private Services Access
+echo "→ Allocating private IP range for Cloud SQL..."
+gcloud compute addresses create google-managed-services-${NETWORK_NAME} \
+    --global \
+    --purpose=VPC_PEERING \
+    --prefix-length=16 \
+    --network="${NETWORK_NAME}" \
+    --project="${PROJECT}" 2>/dev/null || echo "  IP range already allocated"
+
+# Create the private connection
+echo "→ Creating Private Services Access connection (this may take a minute)..."
+gcloud services vpc-peerings connect \
+    --service=servicenetworking.googleapis.com \
+    --ranges=google-managed-services-${NETWORK_NAME} \
+    --network="${NETWORK_NAME}" \
+    --project="${PROJECT}" 2>/dev/null || echo "  Peering already exists"
+
+# Create Serverless VPC Connector (for Cloud Run → private Cloud SQL)
+echo "→ Creating Serverless VPC Access connector..."
+gcloud compute networks vpc-access connectors create "${CONNECTOR_NAME}" \
+    --region="${REGION}" \
+    --network="${NETWORK_NAME}" \
+    --range="10.8.0.0/28" \
+    --project="${PROJECT}" 2>/dev/null || echo "  VPC connector already exists"
+
+# ── Cloud SQL (PostgreSQL — private IP only) ──────────────────
 echo "→ Creating Cloud SQL instance (this takes 5-10 minutes)..."
 if ! gcloud sql instances describe "${INSTANCE_NAME}" --project="${PROJECT}" &>/dev/null; then
     gcloud sql instances create "${INSTANCE_NAME}" \
@@ -80,9 +118,11 @@ if ! gcloud sql instances describe "${INSTANCE_NAME}" --project="${PROJECT}" &>/
         --region="${REGION}" \
         --storage-size=10GB \
         --storage-auto-increase \
+        --no-assign-ip \
+        --network="projects/${PROJECT}/global/networks/${NETWORK_NAME}" \
         --project="${PROJECT}" \
         --quiet
-    echo "  Instance created: ${INSTANCE_NAME}"
+    echo "  Instance created: ${INSTANCE_NAME} (private IP only)"
 else
     echo "  Instance already exists: ${INSTANCE_NAME}"
 fi
@@ -152,6 +192,11 @@ echo "  Image: ${IMAGE}"
 CONNECTION_NAME=$(gcloud sql instances describe "${INSTANCE_NAME}" \
     --project="${PROJECT}" --format='value(connectionName)')
 
+# Get the private IP of the Cloud SQL instance
+DB_PRIVATE_IP=$(gcloud sql instances describe "${INSTANCE_NAME}" \
+    --project="${PROJECT}" --format='value(ipAddresses[0].ipAddress)')
+echo "  DB private IP: ${DB_PRIVATE_IP}"
+
 echo "→ Creating Cloud Run job..."
 gcloud run jobs create "${JOB_NAME}" \
     --image="${IMAGE}" \
@@ -159,11 +204,13 @@ gcloud run jobs create "${JOB_NAME}" \
     --project="${PROJECT}" \
     --service-account="${SA_EMAIL}" \
     --set-cloudsql-instances="${CONNECTION_NAME}" \
+    --vpc-connector="projects/${PROJECT}/locations/${REGION}/connectors/${CONNECTOR_NAME}" \
+    --vpc-egress=private-ranges-only \
     --memory=2Gi \
     --cpu=1 \
     --task-timeout=15m \
     --max-retries=1 \
-    --set-env-vars="DB_SOCKET_PATH=/cloudsql/${CONNECTION_NAME},DB_NAME=${DB_NAME},DB_USER=${DB_USER},GCS_BUCKET=${BUCKET_NAME},SCRAPE_MAX_LISTINGS=50,SCRAPE_SOURCES=craigslist,kijiji" \
+    --set-env-vars="^::^DB_HOST=${DB_PRIVATE_IP}::DB_NAME=${DB_NAME}::DB_USER=${DB_USER}::GCS_BUCKET=${BUCKET_NAME}::SCRAPE_MAX_LISTINGS=50::SCRAPE_SOURCES=craigslist,kijiji" \
     --set-secrets="DB_PASSWORD=db-password:latest" \
     --quiet 2>/dev/null || \
 gcloud run jobs update "${JOB_NAME}" \
@@ -172,11 +219,13 @@ gcloud run jobs update "${JOB_NAME}" \
     --project="${PROJECT}" \
     --service-account="${SA_EMAIL}" \
     --set-cloudsql-instances="${CONNECTION_NAME}" \
+    --vpc-connector="projects/${PROJECT}/locations/${REGION}/connectors/${CONNECTOR_NAME}" \
+    --vpc-egress=private-ranges-only \
     --memory=2Gi \
     --cpu=1 \
     --task-timeout=15m \
     --max-retries=1 \
-    --set-env-vars="DB_SOCKET_PATH=/cloudsql/${CONNECTION_NAME},DB_NAME=${DB_NAME},DB_USER=${DB_USER},GCS_BUCKET=${BUCKET_NAME},SCRAPE_MAX_LISTINGS=50,SCRAPE_SOURCES=craigslist,kijiji" \
+    --set-env-vars="^::^DB_HOST=${DB_PRIVATE_IP}::DB_NAME=${DB_NAME}::DB_USER=${DB_USER}::GCS_BUCKET=${BUCKET_NAME}::SCRAPE_MAX_LISTINGS=50::SCRAPE_SOURCES=craigslist,kijiji" \
     --set-secrets="DB_PASSWORD=db-password:latest" \
     --quiet
 

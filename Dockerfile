@@ -33,7 +33,7 @@ COPY src/ src/
 COPY demo.py demo_complete.py ./
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e ".[dev,gcp]"
 
 # Install Playwright Chromium
 RUN playwright install chromium
