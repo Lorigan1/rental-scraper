@@ -196,3 +196,23 @@ class BaseScraper(ABC):
         except Exception:
             pass
         return ""
+
+    @staticmethod
+    def enrich_from_description(listing: Listing):
+        """Parse listing description for enhanced structured fields.
+
+        Extracts gender preference, lease type, bathroom, laundry,
+        transit, furniture level, and normalized neighbourhood.
+        Modifies the listing in-place.
+        """
+        from rental_scraper.description_parser import DescriptionParser
+
+        parsed = DescriptionParser.parse_all(
+            listing.description,
+            listing.title,
+            listing.location,
+        )
+
+        for field, value in parsed.items():
+            if value is not None:
+                setattr(listing, field, value)

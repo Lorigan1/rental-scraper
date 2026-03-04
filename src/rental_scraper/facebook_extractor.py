@@ -44,7 +44,15 @@ Return a JSON object with these fields:
     "pets_allowed": null or true/false,
     "parking_included": null or true/false,
     "laundry_in_unit": null or true/false,
-    "description": "clean summary of the listing (2-3 sentences)"
+    "description": "clean summary of the listing (2-3 sentences)",
+    "gender_preference": "female_only|male_only|couples_welcome|no_couples|null",
+    "lease_type": "month_to_month|fixed_term|null",
+    "min_lease_months": null or integer (minimum lease length in months),
+    "bathroom_type": "private|shared|null",
+    "laundry_type": "in_unit|in_building|null",
+    "transit_proximity": "near_skytrain|near_bus|good_transit|null",
+    "transit_description": "free-text transit details or null (e.g. '5 min to Commercial-Broadway SkyTrain')",
+    "furniture_level": "fully_furnished|partially_furnished|unfurnished|null"
 }}
 
 Important:
@@ -52,6 +60,10 @@ Important:
 - Price should be monthly rent only. If weekly, multiply by 4. If daily, multiply by 30.
 - For listing_type, choose the closest match
 - Only set is_offering=true for posts that are renting OUT a place, not looking FOR a place
+- For gender_preference, look for mentions like "female only", "no couples", etc.
+- For lease_type, look for "month to month", "minimum X months", etc.
+- For bathroom_type, look for "private bath", "ensuite", "shared bathroom", etc.
+- For transit_proximity, look for mentions of SkyTrain stations, bus routes, or transit descriptions
 - Return ONLY the JSON object, no other text
 """
 
@@ -218,7 +230,7 @@ class FacebookExtractor:
             except (ValueError, TypeError):
                 pass
 
-        return Listing(
+        listing = Listing(
             source=ListingSource.FACEBOOK,
             url=post_url,
             title=data.get("title", "Facebook listing"),
@@ -234,4 +246,20 @@ class FacebookExtractor:
             pets_allowed=data.get("pets_allowed"),
             parking_included=data.get("parking_included"),
             laundry_in_unit=data.get("laundry_in_unit"),
+            gender_preference=data.get("gender_preference"),
+            lease_type=data.get("lease_type"),
+            min_lease_months=data.get("min_lease_months"),
+            bathroom_type=data.get("bathroom_type"),
+            laundry_type=data.get("laundry_type"),
+            transit_proximity=data.get("transit_proximity"),
+            transit_description=data.get("transit_description"),
+            furniture_level=data.get("furniture_level"),
         )
+
+        # Normalize neighbourhood from location + description
+        from rental_scraper.description_parser import DescriptionParser
+        listing.neighbourhood = DescriptionParser.normalize_neighbourhood(
+            f"{listing.location} {listing.title} {listing.description}"
+        )
+
+        return listing

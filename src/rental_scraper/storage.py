@@ -68,6 +68,20 @@ CREATE INDEX IF NOT EXISTS idx_listings_price ON listings(price);
 CREATE INDEX IF NOT EXISTS idx_listings_location ON listings(location);
 CREATE INDEX IF NOT EXISTS idx_listings_type ON listings(listing_type);
 CREATE INDEX IF NOT EXISTS idx_price_history_listing ON price_history(listing_id);
+
+-- Enhanced fields (added v2)
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS gender_preference VARCHAR(30);
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS lease_type VARCHAR(30);
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS min_lease_months INTEGER;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS bathroom_type VARCHAR(30);
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS laundry_type VARCHAR(30);
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS transit_proximity VARCHAR(30);
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS transit_description TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS furniture_level VARCHAR(30);
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS neighbourhood VARCHAR(100);
+
+CREATE INDEX IF NOT EXISTS idx_listings_neighbourhood ON listings(neighbourhood);
+CREATE INDEX IF NOT EXISTS idx_listings_gender ON listings(gender_preference);
 """
 
 UPSERT_LISTING_SQL = """
@@ -76,20 +90,35 @@ INSERT INTO listings (
     posted_date, available_date, extracted_at, listing_type,
     num_bedrooms, num_bathrooms, num_roommates, square_feet,
     utilities_included, furnished, pets_allowed, parking_included,
-    laundry_in_unit, latitude, longitude, image_urls, scrape_run_id
+    laundry_in_unit, latitude, longitude, image_urls, scrape_run_id,
+    gender_preference, lease_type, min_lease_months, bathroom_type,
+    laundry_type, transit_proximity, transit_description,
+    furniture_level, neighbourhood
 ) VALUES (
     %s, %s, %s, %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s, %s,
-    %s, %s, %s, %s::jsonb, %s
+    %s, %s, %s, %s::jsonb, %s,
+    %s, %s, %s, %s,
+    %s, %s, %s,
+    %s, %s
 )
 ON CONFLICT (id) DO UPDATE SET
     price = EXCLUDED.price,
     description = EXCLUDED.description,
     extracted_at = EXCLUDED.extracted_at,
     image_urls = EXCLUDED.image_urls,
-    scrape_run_id = EXCLUDED.scrape_run_id
+    scrape_run_id = EXCLUDED.scrape_run_id,
+    gender_preference = EXCLUDED.gender_preference,
+    lease_type = EXCLUDED.lease_type,
+    min_lease_months = EXCLUDED.min_lease_months,
+    bathroom_type = EXCLUDED.bathroom_type,
+    laundry_type = EXCLUDED.laundry_type,
+    transit_proximity = EXCLUDED.transit_proximity,
+    transit_description = EXCLUDED.transit_description,
+    furniture_level = EXCLUDED.furniture_level,
+    neighbourhood = EXCLUDED.neighbourhood
 """
 
 TRACK_PRICE_SQL = """
@@ -185,6 +214,10 @@ class PostgresStore:
                     listing.parking_included, listing.laundry_in_unit,
                     listing.latitude, listing.longitude,
                     json.dumps(listing.image_urls), run_id,
+                    listing.gender_preference, listing.lease_type, listing.min_lease_months,
+                    listing.bathroom_type, listing.laundry_type,
+                    listing.transit_proximity, listing.transit_description,
+                    listing.furniture_level, listing.neighbourhood,
                 ))
 
                 # Track price history

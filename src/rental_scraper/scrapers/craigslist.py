@@ -110,6 +110,10 @@ class CraigslistScraper(BaseScraper):
                         await self._fetch_listing_details(page, listing)
                         await self.human_delay(2.0, 4.0)
 
+            # Enrich all listings with description parsing
+            for listing in listings:
+                self.enrich_from_description(listing)
+
         except Exception as e:
             logger.error(f"Error scraping Craigslist: {e}")
 

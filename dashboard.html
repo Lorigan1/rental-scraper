@@ -234,6 +234,22 @@
         .badge-kijiji { background: #ffeaa7; color: #6c5005; }
         .badge-facebook { background: #a29bfe; color: #2d1f8e; }
 
+        .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-right: 3px; margin-bottom: 2px; }
+        .tag-green { background: #e0f5ee; color: #00664e; }
+        .tag-blue { background: #e3f2fd; color: #0d47a1; }
+        .tag-purple { background: #f3e5f5; color: #6a1b9a; }
+        .tag-orange { background: #fff3e0; color: #e65100; }
+        .tag-red { background: #fce4ec; color: #c62828; }
+        .tag-gray { background: #eceff1; color: #37474f; }
+
+        .filters-row2 {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
         /* Empty state */
         .empty-state {
             text-align: center;
@@ -284,6 +300,40 @@
             <input type="number" id="filterMaxPrice" placeholder="Max $" style="width:90px;">
             <button class="load-btn" onclick="document.getElementById('fileInput').click()">Load JSON</button>
             <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)">
+        </div>
+        <div class="filters-row2">
+            <select id="filterNeighbourhood">
+                <option value="all">All Neighbourhoods</option>
+            </select>
+            <select id="filterGender">
+                <option value="all">Any Gender</option>
+                <option value="female_only">Female Only</option>
+                <option value="male_only">Male Only</option>
+                <option value="couples_welcome">Couples Welcome</option>
+                <option value="no_couples">No Couples</option>
+            </select>
+            <select id="filterLease">
+                <option value="all">Any Lease</option>
+                <option value="month_to_month">Month-to-Month</option>
+                <option value="fixed_term">Fixed Term</option>
+            </select>
+            <select id="filterBathroom">
+                <option value="all">Any Bathroom</option>
+                <option value="private">Private Bath</option>
+                <option value="shared">Shared Bath</option>
+            </select>
+            <select id="filterFurniture">
+                <option value="all">Any Furniture</option>
+                <option value="fully_furnished">Fully Furnished</option>
+                <option value="partially_furnished">Partially Furnished</option>
+                <option value="unfurnished">Unfurnished</option>
+            </select>
+            <select id="filterTransit">
+                <option value="all">Any Transit</option>
+                <option value="near_skytrain">Near SkyTrain</option>
+                <option value="near_bus">Near Bus</option>
+                <option value="good_transit">Good Transit</option>
+            </select>
         </div>
     </header>
 
@@ -346,10 +396,10 @@
                     <tr>
                         <th data-sort="price">Price <span class="sort-arrow"></span></th>
                         <th data-sort="title">Title <span class="sort-arrow"></span></th>
-                        <th data-sort="location">Location <span class="sort-arrow"></span></th>
+                        <th data-sort="neighbourhood">Neighbourhood <span class="sort-arrow"></span></th>
                         <th data-sort="source">Source <span class="sort-arrow"></span></th>
                         <th data-sort="listing_type">Type <span class="sort-arrow"></span></th>
-                        <th data-sort="posted_date">Posted <span class="sort-arrow"></span></th>
+                        <th>Details</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -423,12 +473,14 @@
         const latest = dates.length ? new Date(Math.max(...dates.map(d => new Date(d)))).toLocaleDateString() : 'Unknown';
         document.getElementById('lastUpdated').textContent = `${allData.length} listings \u00b7 Last updated ${latest}`;
 
+        populateNeighbourhoodFilter();
         applyFilters();
     }
 
     // ── Filters ─────────────────────────────────────────────────
-    document.getElementById('filterSource').addEventListener('change', applyFilters);
-    document.getElementById('filterType').addEventListener('change', applyFilters);
+    ['filterSource','filterType','filterNeighbourhood','filterGender','filterLease','filterBathroom','filterFurniture','filterTransit'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+    });
     document.getElementById('filterMinPrice').addEventListener('input', debounce(applyFilters, 300));
     document.getElementById('filterMaxPrice').addEventListener('input', debounce(applyFilters, 300));
 
@@ -436,15 +488,37 @@
         let t; return function() { clearTimeout(t); t = setTimeout(fn, ms); };
     }
 
+    function populateNeighbourhoodFilter() {
+        const hoods = new Set();
+        allData.forEach(d => { if (d.neighbourhood) hoods.add(d.neighbourhood); });
+        const sel = document.getElementById('filterNeighbourhood');
+        sel.innerHTML = '<option value="all">All Neighbourhoods</option>';
+        [...hoods].sort().forEach(h => {
+            sel.innerHTML += `<option value="${h}">${h}</option>`;
+        });
+    }
+
     function applyFilters() {
         const source = document.getElementById('filterSource').value;
         const type = document.getElementById('filterType').value;
+        const hood = document.getElementById('filterNeighbourhood').value;
+        const gender = document.getElementById('filterGender').value;
+        const lease = document.getElementById('filterLease').value;
+        const bathroom = document.getElementById('filterBathroom').value;
+        const furniture = document.getElementById('filterFurniture').value;
+        const transit = document.getElementById('filterTransit').value;
         const minP = parseInt(document.getElementById('filterMinPrice').value) || 0;
         const maxP = parseInt(document.getElementById('filterMaxPrice').value) || Infinity;
 
         filteredData = allData.filter(d => {
             if (source !== 'all' && d.source !== source) return false;
             if (type !== 'all' && d.listing_type !== type) return false;
+            if (hood !== 'all' && d.neighbourhood !== hood) return false;
+            if (gender !== 'all' && d.gender_preference !== gender) return false;
+            if (lease !== 'all' && d.lease_type !== lease) return false;
+            if (bathroom !== 'all' && d.bathroom_type !== bathroom) return false;
+            if (furniture !== 'all' && d.furniture_level !== furniture) return false;
+            if (transit !== 'all' && d.transit_proximity !== transit) return false;
             if (d.price && d.price < minP) return false;
             if (d.price && d.price > maxP) return false;
             return true;
@@ -578,13 +652,11 @@
             }
         });
 
-        // Average price by neighbourhood
+        // Average price by neighbourhood (uses normalized field, falls back to location)
         const hoods = {};
         filteredData.forEach(d => {
-            if (!d.location || !d.price) return;
-            let loc = d.location.replace(/\(|\)/g, '').trim();
-            if (loc.length > 30) loc = loc.substring(0, 27) + '...';
-            if (!loc) return;
+            const loc = d.neighbourhood || (d.location ? d.location.replace(/\(|\)/g, '').trim() : '');
+            if (!loc || !d.price) return;
             if (!hoods[loc]) hoods[loc] = { total: 0, count: 0 };
             hoods[loc].total += d.price;
             hoods[loc].count += 1;
@@ -719,27 +791,61 @@
             }
         });
 
+        const tagLabels = {
+            female_only: ['Female Only', 'tag-purple'],
+            male_only: ['Male Only', 'tag-blue'],
+            couples_welcome: ['Couples OK', 'tag-green'],
+            no_couples: ['No Couples', 'tag-red'],
+            month_to_month: ['Month-to-Month', 'tag-green'],
+            fixed_term: ['Fixed Term', 'tag-orange'],
+            private: ['Private Bath', 'tag-blue'],
+            shared: ['Shared Bath', 'tag-gray'],
+            in_unit: ['In-Unit Laundry', 'tag-green'],
+            in_building: ['Bldg Laundry', 'tag-gray'],
+            near_skytrain: ['Near SkyTrain', 'tag-blue'],
+            near_bus: ['Near Bus', 'tag-gray'],
+            good_transit: ['Good Transit', 'tag-green'],
+            fully_furnished: ['Furnished', 'tag-green'],
+            partially_furnished: ['Partial Furn.', 'tag-orange'],
+            unfurnished: ['Unfurnished', 'tag-gray'],
+        };
+
+        function makeTags(d) {
+            const tags = [];
+            [d.gender_preference, d.lease_type, d.bathroom_type, d.laundry_type,
+             d.transit_proximity, d.furniture_level].forEach(v => {
+                if (v && tagLabels[v]) {
+                    const [label, cls] = tagLabels[v];
+                    tags.push(`<span class="tag ${cls}">${label}</span>`);
+                }
+            });
+            return tags.join('') || '\u2014';
+        }
+
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = sorted.slice(0, 200).map(d => {
             const price = d.price ? '$' + d.price.toLocaleString() + '/mo' : '\u2014';
             const title = d.title || '\u2014';
-            const loc = (d.location || '\u2014').replace(/\(|\)/g, '').trim();
+            const hood = d.neighbourhood || (d.location || '\u2014').replace(/\(|\)/g, '').trim();
             const source = d.source || '\u2014';
             const type = d.listing_type || '\u2014';
-            const posted = d.posted_date ? new Date(d.posted_date).toLocaleDateString() : '\u2014';
             const url = d.url || '#';
 
             const badgeClass = source === 'craigslist' ? 'badge-craigslist'
                 : source === 'kijiji' ? 'badge-kijiji'
                 : source === 'facebook' ? 'badge-facebook' : '';
 
+            const titleLink = url && url !== '#'
+                ? `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">${escapeHtml(title)}</a>`
+                : escapeHtml(title);
+
             return `<tr>
                 <td><strong>${price}</strong></td>
-                <td><a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">${escapeHtml(title)}</a></td>
-                <td>${escapeHtml(loc)}</td>
+                <td>${titleLink}</td>
+                <td>${escapeHtml(hood)}</td>
                 <td><span class="badge ${badgeClass}">${source}</span></td>
                 <td>${type.replace(/_/g, ' ')}</td>
-                <td>${posted}</td>
+                <td style="white-space:normal;max-width:250px;">${makeTags(d)}</td>
             </tr>`;
         }).join('');
     }

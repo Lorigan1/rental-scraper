@@ -69,12 +69,23 @@ class Listing:
     num_roommates: Optional[int] = None
     square_feet: Optional[int] = None
 
-    # Amenities
+    # Amenities (basic booleans — kept for backward compatibility)
     utilities_included: Optional[bool] = None
     furnished: Optional[bool] = None
     pets_allowed: Optional[bool] = None
     parking_included: Optional[bool] = None
     laundry_in_unit: Optional[bool] = None
+
+    # Enhanced fields (extracted from descriptions)
+    gender_preference: Optional[str] = None    # female_only | male_only | couples_welcome | no_couples
+    lease_type: Optional[str] = None           # month_to_month | fixed_term
+    min_lease_months: Optional[int] = None     # minimum lease length in months
+    bathroom_type: Optional[str] = None        # private | shared
+    laundry_type: Optional[str] = None         # in_unit | in_building
+    transit_proximity: Optional[str] = None    # near_skytrain | near_bus | good_transit
+    transit_description: Optional[str] = None  # free text, e.g. "5 min to Granville SkyTrain"
+    furniture_level: Optional[str] = None      # fully_furnished | partially_furnished | unfurnished
+    neighbourhood: Optional[str] = None        # normalized Vancouver neighbourhood
 
     # Media
     image_urls: list[str] = field(default_factory=list)
