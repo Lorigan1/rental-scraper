@@ -34,14 +34,10 @@ Return a JSON object with these fields:
     "is_offering": true/false,  // true if offering accommodation, false if seeking
     "title": "brief descriptive title",
     "price": null or integer (monthly rent in CAD, e.g. 1200),
-    "price_min": null or integer (low end if price range given),
-    "price_max": null or integer (high end if price range given),
     "location": "neighborhood or area in Vancouver",
     "listing_type": "room_shared|room_private|basement_suite|studio|1br|2br|3br|house|laneway|other",
     "available_date": "YYYY-MM-DD or null",
-    "available_from": "YYYY-MM-DD or 'immediate' or null",
     "num_bedrooms": null or integer,
-    "num_bathrooms": null or integer,
     "num_roommates": null or integer (number of existing roommates),
     "utilities_included": null or true/false,
     "furnished": null or true/false,
@@ -50,33 +46,13 @@ Return a JSON object with these fields:
     "laundry_in_unit": null or true/false,
     "description": "clean summary of the listing (2-3 sentences)",
     "gender_preference": "female_only|male_only|couples_welcome|no_couples|null",
-    "couples_allowed": null or true/false,
-    "smoking_allowed": null or true/false,
-    "age_range_min": null or integer (minimum preferred age),
-    "age_range_max": null or integer (maximum preferred age),
-    "vibe": "quiet|professional|student|social|null",
     "lease_type": "month_to_month|fixed_term|null",
     "min_lease_months": null or integer (minimum lease length in months),
-    "building_type": "high_rise|low_rise|walk_up|house|townhouse|laneway|basement|null",
-    "domicile_type": "apartment|condo|townhouse|house|suite|studio|null",
-    "room_type": "master|single|den|private_room|shared_room|null",
-    "shared_living": null or true/false (shared accommodation with roommates),
-    "furnished_bedroom": null or true/false,
-    "furnished_common": null or true/false,
-    "furniture_level": "fully_furnished|partially_furnished|unfurnished|null",
     "bathroom_type": "private|shared|null",
     "laundry_type": "in_unit|in_building|null",
     "transit_proximity": "near_skytrain|near_bus|good_transit|null",
-    "transit_description": "free-text transit details or null",
-    "dishwasher": null or true/false,
-    "balcony": null or true/false,
-    "fireplace": null or true/false,
-    "air_conditioning": null or true/false,
-    "ev_charging": null or true/false,
-    "gym_access": null or true/false,
-    "storage_locker": null or true/false,
-    "close_to_amenities": null or true/false,
-    "has_views": null or true/false (city/mountain/water views)
+    "transit_description": "free-text transit details or null (e.g. '5 min to Commercial-Broadway SkyTrain')",
+    "furniture_level": "fully_furnished|partially_furnished|unfurnished|null"
 }}
 
 Important:
@@ -84,6 +60,10 @@ Important:
 - Price should be monthly rent only. If weekly, multiply by 4. If daily, multiply by 30.
 - For listing_type, choose the closest match
 - Only set is_offering=true for posts that are renting OUT a place, not looking FOR a place
+- For gender_preference, look for mentions like "female only", "no couples", etc.
+- For lease_type, look for "month to month", "minimum X months", etc.
+- For bathroom_type, look for "private bath", "ensuite", "shared bathroom", etc.
+- For transit_proximity, look for mentions of SkyTrain stations, bus routes, or transit descriptions
 - Return ONLY the JSON object, no other text
 """
 
@@ -259,53 +239,21 @@ class FacebookExtractor:
             description=data.get("description", ""),
             available_date=available_date,
             listing_type=listing_type,
-            # Core fields
             num_bedrooms=data.get("num_bedrooms"),
-            num_bathrooms=data.get("num_bathrooms"),
             num_roommates=data.get("num_roommates"),
             utilities_included=data.get("utilities_included"),
             furnished=data.get("furnished"),
             pets_allowed=data.get("pets_allowed"),
             parking_included=data.get("parking_included"),
             laundry_in_unit=data.get("laundry_in_unit"),
-            # Occupancy preferences
             gender_preference=data.get("gender_preference"),
-            couples_allowed=data.get("couples_allowed"),
-            smoking_allowed=data.get("smoking_allowed"),
-            age_range_min=data.get("age_range_min"),
-            age_range_max=data.get("age_range_max"),
-            vibe=data.get("vibe"),
-            # Lease & availability
             lease_type=data.get("lease_type"),
             min_lease_months=data.get("min_lease_months"),
-            available_from=data.get("available_from"),
-            price_min=data.get("price_min"),
-            price_max=data.get("price_max"),
-            # Property classification
-            building_type=data.get("building_type"),
-            domicile_type=data.get("domicile_type"),
-            room_type=data.get("room_type"),
-            shared_living=data.get("shared_living"),
-            # Furnished details
-            furniture_level=data.get("furniture_level"),
-            furnished_bedroom=data.get("furnished_bedroom"),
-            furnished_common=data.get("furnished_common"),
-            # Bathroom & laundry
             bathroom_type=data.get("bathroom_type"),
             laundry_type=data.get("laundry_type"),
-            # Transit
             transit_proximity=data.get("transit_proximity"),
             transit_description=data.get("transit_description"),
-            # Amenities
-            dishwasher=data.get("dishwasher"),
-            balcony=data.get("balcony"),
-            fireplace=data.get("fireplace"),
-            air_conditioning=data.get("air_conditioning"),
-            ev_charging=data.get("ev_charging"),
-            gym_access=data.get("gym_access"),
-            storage_locker=data.get("storage_locker"),
-            close_to_amenities=data.get("close_to_amenities"),
-            has_views=data.get("has_views"),
+            furniture_level=data.get("furniture_level"),
         )
 
         # Normalize neighbourhood from location + description

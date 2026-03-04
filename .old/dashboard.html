@@ -335,46 +335,6 @@
                 <option value="good_transit">Good Transit</option>
             </select>
         </div>
-        <div class="filters-row2">
-            <select id="filterBuildingType">
-                <option value="all">Any Building</option>
-                <option value="high_rise">High-Rise</option>
-                <option value="low_rise">Low-Rise</option>
-                <option value="house">House</option>
-                <option value="townhouse">Townhouse</option>
-                <option value="basement">Basement</option>
-                <option value="laneway">Laneway</option>
-            </select>
-            <select id="filterRoomType">
-                <option value="all">Any Room</option>
-                <option value="master">Master</option>
-                <option value="single">Single</option>
-                <option value="den">Den</option>
-                <option value="private_room">Private Room</option>
-                <option value="shared_room">Shared Room</option>
-            </select>
-            <select id="filterVibe">
-                <option value="all">Any Vibe</option>
-                <option value="quiet">Quiet</option>
-                <option value="professional">Professional</option>
-                <option value="student">Student</option>
-                <option value="social">Social</option>
-            </select>
-            <select id="filterShared">
-                <option value="all">Shared/Entire</option>
-                <option value="true">Shared Living</option>
-                <option value="false">Entire Unit</option>
-            </select>
-            <label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;">
-                <input type="checkbox" id="filterPetsOk"> Pets OK
-            </label>
-            <label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;">
-                <input type="checkbox" id="filterUtilities"> Utilities Incl.
-            </label>
-            <label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:4px;">
-                <input type="checkbox" id="filterParking"> Parking
-            </label>
-        </div>
     </header>
 
     <div id="emptyState" class="empty-state">
@@ -518,10 +478,7 @@
     }
 
     // ── Filters ─────────────────────────────────────────────────
-    ['filterSource','filterType','filterNeighbourhood','filterGender','filterLease','filterBathroom','filterFurniture','filterTransit','filterBuildingType','filterRoomType','filterVibe','filterShared'].forEach(id => {
-        document.getElementById(id).addEventListener('change', applyFilters);
-    });
-    ['filterPetsOk','filterUtilities','filterParking'].forEach(id => {
+    ['filterSource','filterType','filterNeighbourhood','filterGender','filterLease','filterBathroom','filterFurniture','filterTransit'].forEach(id => {
         document.getElementById(id).addEventListener('change', applyFilters);
     });
     document.getElementById('filterMinPrice').addEventListener('input', debounce(applyFilters, 300));
@@ -550,13 +507,6 @@
         const bathroom = document.getElementById('filterBathroom').value;
         const furniture = document.getElementById('filterFurniture').value;
         const transit = document.getElementById('filterTransit').value;
-        const building = document.getElementById('filterBuildingType').value;
-        const room = document.getElementById('filterRoomType').value;
-        const vibe = document.getElementById('filterVibe').value;
-        const shared = document.getElementById('filterShared').value;
-        const petsOk = document.getElementById('filterPetsOk').checked;
-        const utilitiesIncl = document.getElementById('filterUtilities').checked;
-        const parkingIncl = document.getElementById('filterParking').checked;
         const minP = parseInt(document.getElementById('filterMinPrice').value) || 0;
         const maxP = parseInt(document.getElementById('filterMaxPrice').value) || Infinity;
 
@@ -569,14 +519,6 @@
             if (bathroom !== 'all' && d.bathroom_type !== bathroom) return false;
             if (furniture !== 'all' && d.furniture_level !== furniture) return false;
             if (transit !== 'all' && d.transit_proximity !== transit) return false;
-            if (building !== 'all' && d.building_type !== building) return false;
-            if (room !== 'all' && d.room_type !== room) return false;
-            if (vibe !== 'all' && d.vibe !== vibe) return false;
-            if (shared === 'true' && d.shared_living !== true) return false;
-            if (shared === 'false' && d.shared_living !== false) return false;
-            if (petsOk && !d.pets_allowed) return false;
-            if (utilitiesIncl && !d.utilities_included) return false;
-            if (parkingIncl && !d.parking_included) return false;
             if (d.price && d.price < minP) return false;
             if (d.price && d.price > maxP) return false;
             return true;
@@ -850,74 +792,33 @@
         });
 
         const tagLabels = {
-            // Gender / occupancy
             female_only: ['Female Only', 'tag-purple'],
             male_only: ['Male Only', 'tag-blue'],
             couples_welcome: ['Couples OK', 'tag-green'],
             no_couples: ['No Couples', 'tag-red'],
-            // Lease
-            month_to_month: ['M2M', 'tag-green'],
+            month_to_month: ['Month-to-Month', 'tag-green'],
             fixed_term: ['Fixed Term', 'tag-orange'],
-            // Bathroom
             private: ['Private Bath', 'tag-blue'],
             shared: ['Shared Bath', 'tag-gray'],
-            // Laundry
-            in_unit: ['In-Unit W/D', 'tag-green'],
+            in_unit: ['In-Unit Laundry', 'tag-green'],
             in_building: ['Bldg Laundry', 'tag-gray'],
-            // Transit
-            near_skytrain: ['SkyTrain', 'tag-blue'],
-            near_bus: ['Bus', 'tag-gray'],
+            near_skytrain: ['Near SkyTrain', 'tag-blue'],
+            near_bus: ['Near Bus', 'tag-gray'],
             good_transit: ['Good Transit', 'tag-green'],
-            // Furniture
             fully_furnished: ['Furnished', 'tag-green'],
             partially_furnished: ['Partial Furn.', 'tag-orange'],
             unfurnished: ['Unfurnished', 'tag-gray'],
-            // Building type
-            high_rise: ['High-Rise', 'tag-blue'],
-            low_rise: ['Low-Rise', 'tag-gray'],
-            house: ['House', 'tag-green'],
-            townhouse: ['Townhouse', 'tag-green'],
-            basement: ['Basement', 'tag-gray'],
-            laneway: ['Laneway', 'tag-green'],
-            walk_up: ['Walk-Up', 'tag-gray'],
-            // Room type
-            master: ['Master', 'tag-purple'],
-            single: ['Single', 'tag-gray'],
-            den: ['Den', 'tag-orange'],
-            private_room: ['Private Rm', 'tag-blue'],
-            shared_room: ['Shared Rm', 'tag-gray'],
-            // Vibe
-            quiet: ['Quiet', 'tag-blue'],
-            professional: ['Professional', 'tag-blue'],
-            student: ['Student', 'tag-purple'],
-            social: ['Social', 'tag-orange'],
         };
 
         function makeTags(d) {
             const tags = [];
-            // String enum fields
             [d.gender_preference, d.lease_type, d.bathroom_type, d.laundry_type,
-             d.transit_proximity, d.furniture_level, d.building_type,
-             d.room_type, d.vibe].forEach(v => {
+             d.transit_proximity, d.furniture_level].forEach(v => {
                 if (v && tagLabels[v]) {
                     const [label, cls] = tagLabels[v];
                     tags.push(`<span class="tag ${cls}">${label}</span>`);
                 }
             });
-            // Boolean amenities
-            if (d.utilities_included) tags.push('<span class="tag tag-green">Utilities</span>');
-            if (d.parking_included) tags.push('<span class="tag tag-green">Parking</span>');
-            if (d.pets_allowed) tags.push('<span class="tag tag-green">Pets OK</span>');
-            if (d.dishwasher) tags.push('<span class="tag tag-gray">Dishwasher</span>');
-            if (d.balcony) tags.push('<span class="tag tag-gray">Balcony</span>');
-            if (d.fireplace) tags.push('<span class="tag tag-gray">Fireplace</span>');
-            if (d.air_conditioning) tags.push('<span class="tag tag-blue">A/C</span>');
-            if (d.gym_access) tags.push('<span class="tag tag-blue">Gym</span>');
-            if (d.has_views) tags.push('<span class="tag tag-purple">Views</span>');
-            if (d.shared_living) tags.push('<span class="tag tag-orange">Shared</span>');
-            if (d.smoking_allowed === false) tags.push('<span class="tag tag-red">No Smoking</span>');
-            if (d.couples_allowed === false) tags.push('<span class="tag tag-red">No Couples</span>');
-            if (d.available_from) tags.push(`<span class="tag tag-blue">${d.available_from === 'immediate' ? 'Now' : d.available_from}</span>`);
             return tags.join('') || '\u2014';
         }
 

@@ -199,15 +199,11 @@ class BaseScraper(ABC):
 
     @staticmethod
     def enrich_from_description(listing: Listing):
-        """Parse listing description for all structured fields.
+        """Parse listing description for enhanced structured fields.
 
-        Extracts occupancy preferences, lease terms, property details,
-        amenities, transit, furnished status, and neighbourhood.
+        Extracts gender preference, lease type, bathroom, laundry,
+        transit, furniture level, and normalized neighbourhood.
         Modifies the listing in-place.
-
-        For existing boolean fields (utilities_included, parking_included,
-        pets_allowed, furnished), only overwrite if the current value is None
-        so that structured data from scrapers takes precedence.
         """
         from rental_scraper.description_parser import DescriptionParser
 
@@ -217,30 +213,6 @@ class BaseScraper(ABC):
             listing.location,
         )
 
-        # Fields where structured scraper data should take precedence
-        _existing_precedence = {
-            "utilities_included", "parking_included", "pets_allowed",
-            "num_bedrooms", "num_bathrooms",
-        }
-
-        for field_name, value in parsed.items():
+        for field, value in parsed.items():
             if value is not None:
-                if field_name in _existing_precedence:
-                    # Only set if not already populated by scraper
-                    if getattr(listing, field_name, None) is None:
-                        setattr(listing, field_name, value)
-                else:
-                    setattr(listing, field_name, value)
-
-        # Derive furnished from furnished_bedroom / furnished_common
-        if listing.furnished is None:
-            if listing.furnished_bedroom or listing.furnished_common:
-                listing.furnished = True
-            elif listing.furniture_level == "unfurnished":
-                listing.furnished = False
-            elif listing.furniture_level in ("fully_furnished", "partially_furnished"):
-                listing.furnished = True
-
-        # Derive laundry_in_unit from laundry_type
-        if listing.laundry_in_unit is None and listing.laundry_type == "in_unit":
-            listing.laundry_in_unit = True
+                setattr(listing, field, value)

@@ -69,59 +69,19 @@ CREATE INDEX IF NOT EXISTS idx_listings_location ON listings(location);
 CREATE INDEX IF NOT EXISTS idx_listings_type ON listings(listing_type);
 CREATE INDEX IF NOT EXISTS idx_price_history_listing ON price_history(listing_id);
 
--- Enhanced fields v2: occupancy preferences
+-- Enhanced fields (added v2)
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS gender_preference VARCHAR(30);
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS couples_allowed BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS smoking_allowed BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS age_range_min INTEGER;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS age_range_max INTEGER;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS vibe VARCHAR(30);
-
--- Enhanced fields v2: lease & availability
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS lease_type VARCHAR(30);
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS min_lease_months INTEGER;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS available_from VARCHAR(30);
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS price_min INTEGER;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS price_max INTEGER;
-
--- Enhanced fields v2: property classification
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS building_type VARCHAR(30);
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS domicile_type VARCHAR(30);
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS room_type VARCHAR(30);
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS shared_living BOOLEAN;
-
--- Enhanced fields v2: furnished details
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS furniture_level VARCHAR(30);
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS furnished_bedroom BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS furnished_common BOOLEAN;
-
--- Enhanced fields v2: bathroom & laundry
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS bathroom_type VARCHAR(30);
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS laundry_type VARCHAR(30);
-
--- Enhanced fields v2: transit
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS transit_proximity VARCHAR(30);
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS transit_description TEXT;
-
--- Enhanced fields v2: amenities
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS dishwasher BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS balcony BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS fireplace BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS air_conditioning BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS ev_charging BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS gym_access BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS storage_locker BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS close_to_amenities BOOLEAN;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS has_views BOOLEAN;
-
--- Enhanced fields v2: location
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS furniture_level VARCHAR(30);
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS neighbourhood VARCHAR(100);
 
 CREATE INDEX IF NOT EXISTS idx_listings_neighbourhood ON listings(neighbourhood);
 CREATE INDEX IF NOT EXISTS idx_listings_gender ON listings(gender_preference);
-CREATE INDEX IF NOT EXISTS idx_listings_building_type ON listings(building_type);
-CREATE INDEX IF NOT EXISTS idx_listings_room_type ON listings(room_type);
-CREATE INDEX IF NOT EXISTS idx_listings_vibe ON listings(vibe);
 """
 
 UPSERT_LISTING_SQL = """
@@ -131,34 +91,18 @@ INSERT INTO listings (
     num_bedrooms, num_bathrooms, num_roommates, square_feet,
     utilities_included, furnished, pets_allowed, parking_included,
     laundry_in_unit, latitude, longitude, image_urls, scrape_run_id,
-    gender_preference, couples_allowed, smoking_allowed,
-    age_range_min, age_range_max, vibe,
-    lease_type, min_lease_months, available_from, price_min, price_max,
-    building_type, domicile_type, room_type, shared_living,
-    furniture_level, furnished_bedroom, furnished_common,
-    bathroom_type, laundry_type,
-    transit_proximity, transit_description,
-    dishwasher, balcony, fireplace, air_conditioning,
-    ev_charging, gym_access, storage_locker,
-    close_to_amenities, has_views,
-    neighbourhood
+    gender_preference, lease_type, min_lease_months, bathroom_type,
+    laundry_type, transit_proximity, transit_description,
+    furniture_level, neighbourhood
 ) VALUES (
     %s, %s, %s, %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s, %s::jsonb, %s,
-    %s, %s, %s,
-    %s, %s, %s,
-    %s, %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s,
-    %s, %s,
-    %s, %s,
-    %s, %s, %s, %s,
-    %s, %s, %s,
-    %s, %s,
-    %s
+    %s, %s
 )
 ON CONFLICT (id) DO UPDATE SET
     price = EXCLUDED.price,
@@ -167,36 +111,13 @@ ON CONFLICT (id) DO UPDATE SET
     image_urls = EXCLUDED.image_urls,
     scrape_run_id = EXCLUDED.scrape_run_id,
     gender_preference = EXCLUDED.gender_preference,
-    couples_allowed = EXCLUDED.couples_allowed,
-    smoking_allowed = EXCLUDED.smoking_allowed,
-    age_range_min = EXCLUDED.age_range_min,
-    age_range_max = EXCLUDED.age_range_max,
-    vibe = EXCLUDED.vibe,
     lease_type = EXCLUDED.lease_type,
     min_lease_months = EXCLUDED.min_lease_months,
-    available_from = EXCLUDED.available_from,
-    price_min = EXCLUDED.price_min,
-    price_max = EXCLUDED.price_max,
-    building_type = EXCLUDED.building_type,
-    domicile_type = EXCLUDED.domicile_type,
-    room_type = EXCLUDED.room_type,
-    shared_living = EXCLUDED.shared_living,
-    furniture_level = EXCLUDED.furniture_level,
-    furnished_bedroom = EXCLUDED.furnished_bedroom,
-    furnished_common = EXCLUDED.furnished_common,
     bathroom_type = EXCLUDED.bathroom_type,
     laundry_type = EXCLUDED.laundry_type,
     transit_proximity = EXCLUDED.transit_proximity,
     transit_description = EXCLUDED.transit_description,
-    dishwasher = EXCLUDED.dishwasher,
-    balcony = EXCLUDED.balcony,
-    fireplace = EXCLUDED.fireplace,
-    air_conditioning = EXCLUDED.air_conditioning,
-    ev_charging = EXCLUDED.ev_charging,
-    gym_access = EXCLUDED.gym_access,
-    storage_locker = EXCLUDED.storage_locker,
-    close_to_amenities = EXCLUDED.close_to_amenities,
-    has_views = EXCLUDED.has_views,
+    furniture_level = EXCLUDED.furniture_level,
     neighbourhood = EXCLUDED.neighbourhood
 """
 
@@ -293,20 +214,10 @@ class PostgresStore:
                     listing.parking_included, listing.laundry_in_unit,
                     listing.latitude, listing.longitude,
                     json.dumps(listing.image_urls), run_id,
-                    listing.gender_preference, listing.couples_allowed, listing.smoking_allowed,
-                    listing.age_range_min, listing.age_range_max, listing.vibe,
-                    listing.lease_type, listing.min_lease_months,
-                    listing.available_from, listing.price_min, listing.price_max,
-                    listing.building_type, listing.domicile_type,
-                    listing.room_type, listing.shared_living,
-                    listing.furniture_level, listing.furnished_bedroom, listing.furnished_common,
+                    listing.gender_preference, listing.lease_type, listing.min_lease_months,
                     listing.bathroom_type, listing.laundry_type,
                     listing.transit_proximity, listing.transit_description,
-                    listing.dishwasher, listing.balcony, listing.fireplace,
-                    listing.air_conditioning,
-                    listing.ev_charging, listing.gym_access, listing.storage_locker,
-                    listing.close_to_amenities, listing.has_views,
-                    listing.neighbourhood,
+                    listing.furniture_level, listing.neighbourhood,
                 ))
 
                 # Track price history

@@ -76,52 +76,15 @@ class Listing:
     parking_included: Optional[bool] = None
     laundry_in_unit: Optional[bool] = None
 
-    # Enhanced fields v2 — occupancy preferences
+    # Enhanced fields (extracted from descriptions)
     gender_preference: Optional[str] = None    # female_only | male_only | couples_welcome | no_couples
-    couples_allowed: Optional[bool] = None     # couples welcome
-    smoking_allowed: Optional[bool] = None     # smoking permitted
-    age_range_min: Optional[int] = None        # minimum preferred age
-    age_range_max: Optional[int] = None        # maximum preferred age
-    vibe: Optional[str] = None                 # calm | social | quiet | professional | student
-
-    # Enhanced fields v2 — lease & availability
     lease_type: Optional[str] = None           # month_to_month | fixed_term
     min_lease_months: Optional[int] = None     # minimum lease length in months
-    available_from: Optional[str] = None       # move-in date as ISO string
-    price_min: Optional[int] = None            # low end of price range
-    price_max: Optional[int] = None            # high end of price range
-
-    # Enhanced fields v2 — property classification
-    building_type: Optional[str] = None        # high_rise | low_rise | walk_up | house | townhouse | laneway | basement
-    domicile_type: Optional[str] = None        # apartment | condo | townhouse | house | suite | studio
-    room_type: Optional[str] = None            # master | single | den | private_room | shared_room
-    shared_living: Optional[bool] = None       # shared accommodation with roommates
-
-    # Enhanced fields v2 — furnished details
-    furniture_level: Optional[str] = None      # fully_furnished | partially_furnished | unfurnished
-    furnished_bedroom: Optional[bool] = None   # bedroom specifically is furnished
-    furnished_common: Optional[bool] = None    # common areas are furnished
-
-    # Enhanced fields v2 — bathroom & laundry
     bathroom_type: Optional[str] = None        # private | shared
     laundry_type: Optional[str] = None         # in_unit | in_building
-
-    # Enhanced fields v2 — transit
     transit_proximity: Optional[str] = None    # near_skytrain | near_bus | good_transit
     transit_description: Optional[str] = None  # free text, e.g. "5 min to Granville SkyTrain"
-
-    # Enhanced fields v2 — amenities (booleans)
-    dishwasher: Optional[bool] = None
-    balcony: Optional[bool] = None
-    fireplace: Optional[bool] = None
-    air_conditioning: Optional[bool] = None
-    ev_charging: Optional[bool] = None
-    gym_access: Optional[bool] = None
-    storage_locker: Optional[bool] = None
-    close_to_amenities: Optional[bool] = None  # near shops/restaurants/parks
-    has_views: Optional[bool] = None           # city/mountain/water views
-
-    # Enhanced fields v2 — location
+    furniture_level: Optional[str] = None      # fully_furnished | partially_furnished | unfurnished
     neighbourhood: Optional[str] = None        # normalized Vancouver neighbourhood
 
     # Media
